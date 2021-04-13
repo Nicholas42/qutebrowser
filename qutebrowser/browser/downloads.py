@@ -1301,14 +1301,17 @@ class TempDownloadManager:
         self.files: MutableSequence[IO[bytes]] = []
         self._tmpdir = None
 
-    def cleanup(self):
+    def cleanup(self, *, ignore_errors=False):
         """Clean up any temporary files."""
         if self._tmpdir is not None:
             try:
                 self._tmpdir.cleanup()
             except OSError:
-                log.misc.exception("Failed to clean up temporary download "
-                                   "directory")
+                msg = "Failed to clean up temporary download directory"
+                if ignore_errors:
+                    log.misc.debug(msg, exc_info=True)
+                else:
+                    log.misc.exception(msg)
             self._tmpdir = None
 
     def get_tmpdir(self):
@@ -1322,7 +1325,7 @@ class TempDownloadManager:
         if self._tmpdir is not None and not os.path.exists(self._tmpdir.name):
             log.misc.error(
                 f"Temporary directory {self._tmpdir.name} vanished, recreating...")
-            self.cleanup()
+            self.cleanup(ignore_errors=True)
 
         if self._tmpdir is None:
             self._tmpdir = tempfile.TemporaryDirectory(

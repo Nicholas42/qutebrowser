@@ -186,7 +186,7 @@ class TestTempDownloadManager:
     def manager(self):
         man = downloads.TempDownloadManager()
         yield man
-        man.cleanup()
+        man.cleanup(ignore_errors=True)
 
     def test_get_tmpdir(self, manager):
         assert manager._tmpdir is None
