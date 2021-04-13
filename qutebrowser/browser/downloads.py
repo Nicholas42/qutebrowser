@@ -1319,9 +1319,15 @@ class TempDownloadManager:
         Return:
             The tempfile.TemporaryDirectory that is used.
         """
+        if self._tmpdir is not None and not os.path.exists(self._tmpdir.name):
+            log.misc.error(
+                f"Temporary directory {self._tmpdir.name} vanished, recreating...")
+            self.cleanup()
+
         if self._tmpdir is None:
             self._tmpdir = tempfile.TemporaryDirectory(
                 prefix='qutebrowser-downloads-')
+
         return self._tmpdir
 
     def get_tmpfile(self, suggested_name):

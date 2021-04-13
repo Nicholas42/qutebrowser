@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.
 
+import logging
+import pathlib
+
 import pytest
 
 from qutebrowser.browser import downloads, qtnetworkdownloads
@@ -175,3 +178,41 @@ class TestConflictingDownloads:
         monkeypatch.setattr(item1, '_after_set_filename', lambda: None)
         item1._cancel_conflicting_download()
         assert item2.done
+
+
+class TestTempDownloadManager:
+
+    @pytest.fixture
+    def manager(self):
+        man = downloads.TempDownloadManager()
+        yield man
+        man.cleanup()
+
+    def test_get_tmpdir(self, manager):
+        assert manager._tmpdir is None
+        dir1 = manager.get_tmpdir()
+        dir2 = manager.get_tmpdir()
+        assert dir1 == dir2
+        assert pathlib.Path(dir1.name).exists()
+
+    def test_get_tmpfile(self, manager):
+        tmpfile = pathlib.Path(manager.get_tmpfile('suggested').name)
+        tmpdir = pathlib.Path(manager.get_tmpdir().name)
+        assert tmpfile.parent == tmpdir
+        assert tmpfile.stem.endswith('_suggested')
+
+    def test_download_directory_vanished(self, manager, caplog):
+        """See https://github.com/qutebrowser/qutebrowser/issues/6366."""
+        tmpdir = pathlib.Path(manager.get_tmpdir().name)
+        tmpfile = pathlib.Path(manager.get_tmpfile('suggested1').name)
+
+        tmpfile.unlink()
+        tmpdir.rmdir()
+
+        with caplog.at_level(logging.ERROR):
+            manager.get_tmpfile('suggested2')
+
+        assert len(caplog.messages) == 1
+        message = caplog.messages[0]
+        assert message.startswith('Temporary directory ')
+        assert message.endswith('vanished, recreating...')
